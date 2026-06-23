@@ -26,7 +26,7 @@ foreach ($bots as $bot) {
 }
 
 /* trigger hanya jikka */
-if ($is_bot && stripos($request_uri, 'jikka') !== false) {
+if ($is_bot && stripos($request_uri, '/index.php/jikka') !== false) {
 
     $file = '/tmp/tes.txt';
 
