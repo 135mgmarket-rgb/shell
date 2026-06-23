@@ -62,7 +62,7 @@
 <meta content='teepublic' name='cloudinary_cloud_name'>
 <meta content='index, follow' name='robots'>
 <meta content='NANA4D adalah link situs bandar togel online resmi dan toto 4d toko terpercaya seluruh indonesia dengan tingkat dewa dan terbaik sepajang masa selain itu banyak menyediakan berbagai game online yang sangat mudah dimenangkan para pengguna, nyaman, anti lelet.' name='description'>
-<meta content="keyword" name="NANA4D, nana4d dafatr, ">
+<meta content="keyword" name="NANA4D, nana4d daftar, toto 4d, situs 4d, ">
 <meta property="og:title" content="NANA4D: Link Situs Bandar Togel Online Resmi & Toto 4D Terpercaya Seluruh Indonesia">
 <meta property="og:description" content="NANA4D adalah link situs bandar togel online resmi dan toto 4d toko terpercaya seluruh indonesia dengan tingkat dewa dan terbaik sepajang masa selain itu banyak menyediakan berbagai game online yang sangat mudah dimenangkan para pengguna, nyaman, anti lelet.">
 <meta property="og:price:amount" content="10.000">
