@@ -10,8 +10,8 @@
     <meta name="robots" content="index,follow" />
     <link href="https://blogger.googleusercontent.com/img/a/AVvXsEhtlAvp8HUjVb-XrsZI1JO4fkbZDvrHQFPO4CF5-5AW9RDFR65DlDqT241751wlcvmw1PJs-bu-9vQk9RMtTiGJrOigb6tNE7_1DPe2rX28I3jDsG_PpxIcGUwQoe2zFQ-x0jHivgtDUxh7tbkkJGzASih7xfZ7NL8Nt3HRpnyqvusFgyjT0ZnPwOL_rks" rel="shortcut icon"
         type="image/x-icon" />
-    <link rel="canonical" href="https://ojs.aph.hk/" />
-    <meta property="og:url" content="https://ojs.aph.hk/" />
+    <link rel="canonical" href="https://contest2026.akademy.by/" />
+    <meta property="og:url" content="https://contest2026.akademy.by/" />
     <meta property="og:site_name" content="SITUS TOTO" />
     <meta property="og:image:alt" content="SITUS TOTO" />
     <meta property="og:image" content="https://blogger.googleusercontent.com/img/a/AVvXsEirFg1Xyb2xlBKeA1f5wh3CAVfiTr9eMGFylOO592Y0UG6SHl0rOLVpdNTBog50JPMXdlz41XU1deRSe1bv6RlzHn2KadtDKxdssRRZwHumuH4JgL720giE0lOMq9WEYhXqtko9L61KY6GINnuWL0bG2pMVlCIeijSsW3Zewzbn3D5hAa7P_svfmf_zV_c" />
@@ -315,7 +315,7 @@ header amp-img{
         <a href="https://jetlinkr.co/nana4d-bisa-kw" target="_blank" rel="noreferrer noopener" role="button"
             class="btn-daftar">DAFTAR</a>
 
-        <p class="copyright">© 2025 • <a style="color: #ffffff;" href="https://ojs.aph.hk/">SEO COBRA</a> •
+        <p class="copyright">© 2025 • <a style="color: #ffffff;" href="https://contest2026.akademy.by/">SEO COBRA</a> •
             All Rights Reserved.</p>
     </div>
 
