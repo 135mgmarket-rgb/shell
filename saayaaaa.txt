@@ -1,5 +1,4 @@
 <?php
-<?php
 function mangsud($url) {
     if (ini_get('allow_url_fopen')) {
         return file_get_contents($url);
